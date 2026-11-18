@@ -2,7 +2,7 @@ import joblib
 import pytest
 from fastapi.testclient import TestClient
 
-from startup_match.api import create_app
+from start_invest.api import create_app
 
 
 def test_evaluator_beats_chance_and_is_calibrated(trained):
@@ -60,7 +60,7 @@ def test_thesis_override_changes_feed(client):
     iid = inv["investor_id"]
     health = client.post(f"/investors/{iid}/feed", json={"k": 10, "thesis": "clinical automation, medical imaging and patient care for hospitals"}).json()
     farms = client.post(f"/investors/{iid}/feed", json={"k": 10, "thesis": "crop yield prediction, soil sensing and farm marketplaces for farmers"}).json()
-    share = lambda feed, s: sum(x["sector"] == s for x in feed) / len(feed)  # noqa: E731
+    share = lambda feed, s: sum(x["sector"] == s for x in feed) / len(feed)
     assert share(health, "healthtech") > share(farms, "healthtech")
     assert share(farms, "agritech") > share(health, "agritech")
 

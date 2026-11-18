@@ -12,17 +12,28 @@ import pandas as pd
 from .config import STAGES, TRAIN_END, VAL_END
 
 NUMERIC_FEATURES = [
-    "n_rounds", "log_total_raised", "log_last_round", "last_stage_idx", "months_since_last_round",
-    "months_since_founding", "avg_months_between_rounds", "n_founders", "max_founder_years",
-    "total_prior_exits", "has_technical_founder", "revenue_growth_yoy", "log_customers",
-    "log_headcount", "hiring_growth_6m", "web_traffic_growth_6m",
+    "n_rounds",
+    "log_total_raised",
+    "log_last_round",
+    "last_stage_idx",
+    "months_since_last_round",
+    "months_since_founding",
+    "avg_months_between_rounds",
+    "n_founders",
+    "max_founder_years",
+    "total_prior_exits",
+    "has_technical_founder",
+    "revenue_growth_yoy",
+    "log_customers",
+    "log_headcount",
+    "hiring_growth_6m",
+    "web_traffic_growth_6m",
 ]
 CATEGORICAL_FEATURES = ["sector", "country"]
 FEATURES = NUMERIC_FEATURES + CATEGORICAL_FEATURES
 
 
-def build_features(snapshots: pd.DataFrame, startups: pd.DataFrame, founders: pd.DataFrame,
-                   rounds: pd.DataFrame) -> pd.DataFrame:
+def build_features(snapshots: pd.DataFrame, startups: pd.DataFrame, founders: pd.DataFrame, rounds: pd.DataFrame) -> pd.DataFrame:
     """Return one row per snapshot with FEATURES plus ids, dates and label (if present)."""
     snap = snapshots.merge(startups[["startup_id", "sector", "country", "founded"]], on="startup_id", how="left")
 
@@ -42,7 +53,7 @@ def build_features(snapshots: pd.DataFrame, startups: pd.DataFrame, founders: pd
     snap["log_total_raised"] = np.log1p(snap["total_raised"].fillna(0.0))
     snap["log_last_round"] = np.log1p(snap["last_round"].fillna(0.0))
     snap["last_stage_idx"] = snap["last_stage_idx"].fillna(-1)
-    days = lambda a, b: (a - b).dt.days / 30.44  # noqa: E731
+    days = lambda a, b: (a - b).dt.days / 30.44
     snap["months_since_last_round"] = days(snap["snapshot_date"], snap["last_date"])
     snap["months_since_founding"] = days(snap["snapshot_date"], snap["founded"])
     span = days(snap["last_date"], snap["first_date"])

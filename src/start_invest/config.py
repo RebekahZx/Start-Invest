@@ -1,6 +1,7 @@
 """Central configuration: dates, horizons and splits."""
 
 from dataclasses import dataclass
+
 import pandas as pd
 
 DATA_END = pd.Timestamp("2026-06-30")

@@ -7,3 +7,4 @@ dist/
 .venv/
 artifacts/*.joblib
 .DS_Store
+.ruff_cache/

@@ -40,8 +40,7 @@ RANKER_PHRASES = {
 }
 
 
-def reasons(shap_row: pd.Series, phrases: dict, top_k: int = 3, min_abs: float = 0.02,
-            values: pd.Series | None = None) -> list[dict]:
+def reasons(shap_row: pd.Series, phrases: dict, top_k: int = 3, min_abs: float = 0.02, values: pd.Series | None = None) -> list[dict]:
     """Top contributions by magnitude, each as {'text', 'direction', 'impact'}.
 
     If `values` (the model inputs) is given, features that were missing are
@@ -57,4 +56,51 @@ def reasons(shap_row: pd.Series, phrases: dict, top_k: int = 3, min_abs: float =
         positive = shap_row[feat] > 0
         text = up if positive else down
         out.append({"feature": feat, "text": text, "direction": "+" if positive else "-", "impact": round(float(shap_row[feat]), 4)})
+    return out
+
+
+# Short names used where every contribution is shown (tables, waterfalls).
+RANKER_LABELS = {
+    "text_sim": "Thesis fit",
+    "stage_fit": "Stage",
+    "ticket_gap": "Ticket size",
+    "p_success": "Follow-on odds",
+    "p_uncertainty": "Estimate certainty",
+    "risk_appetite": "Your risk appetite",
+    "p_x_risk": "Risk/return fit",
+    "log_total_raised": "Capital raised",
+    "revenue_growth_yoy": "Revenue growth",
+    "months_since_last_round": "Raise timing",
+}
+EVALUATOR_LABELS = {
+    "n_rounds": "Rounds raised",
+    "log_total_raised": "Capital raised",
+    "log_last_round": "Last round size",
+    "last_stage_idx": "Stage",
+    "months_since_last_round": "Time since last round",
+    "months_since_founding": "Company age",
+    "avg_months_between_rounds": "Fundraising cadence",
+    "n_founders": "Founders",
+    "max_founder_years": "Founder experience",
+    "total_prior_exits": "Prior exits",
+    "has_technical_founder": "Technical founder",
+    "revenue_growth_yoy": "Revenue growth",
+    "log_customers": "Customers",
+    "log_headcount": "Team size",
+    "hiring_growth_6m": "Hiring growth",
+    "web_traffic_growth_6m": "Usage growth",
+    "sector": "Sector",
+    "country": "Country",
+}
+
+
+def contributions(shap_row: pd.Series, labels: dict, phrases: dict, values: pd.Series | None = None) -> list[dict]:
+    """Every contribution, largest first, with a short label and a sentence. Missing inputs are dropped."""
+    out = []
+    for feat in shap_row.abs().sort_values(ascending=False).index:
+        if values is not None and feat in values and pd.isna(values[feat]):
+            continue
+        v = float(shap_row[feat])
+        up, down = phrases.get(feat, (feat, feat))
+        out.append({"feature": feat, "label": labels.get(feat, feat), "impact": round(v, 4), "text": up if v > 0 else down})
     return out

@@ -1,8 +1,10 @@
 """Startup evaluator: P(raises another round within 24 months).
 
 A bagged ensemble of LightGBM classifiers, early-stopped on a later time
-window, then isotonic-calibrated on that same window. The spread across the
-ensemble is reported as a confidence estimate.
+window, then Platt-calibrated (logistic regression on the log-odds) on that
+same window. Platt scaling is smooth and monotone, so it never collapses many
+startups onto the same probability the way isotonic steps can. The spread
+across the ensemble is reported as a confidence estimate.
 """
 
 from __future__ import annotations
@@ -13,13 +15,20 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 import shap
-from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LogisticRegression
 
 from .features import CATEGORICAL_FEATURES, FEATURES
 
 PARAMS = dict(
-    objective="binary", learning_rate=0.03, num_leaves=15, min_child_samples=40,
-    feature_fraction=0.8, bagging_fraction=0.8, bagging_freq=1, lambda_l2=1.0, verbose=-1,
+    objective="binary",
+    learning_rate=0.03,
+    num_leaves=15,
+    min_child_samples=40,
+    feature_fraction=0.8,
+    bagging_fraction=0.8,
+    bagging_freq=1,
+    lambda_l2=1.0,
+    verbose=-1,
 )
 
 
@@ -28,7 +37,7 @@ class StartupEvaluator:
         self.n_models = n_models
         self.seed = seed
         self.models: list[lgb.Booster] = []
-        self.calibrator: IsotonicRegression | None = None
+        self.calibrator: LogisticRegression | None = None
         self.categories: dict[str, list[str]] = {}
         self._explainers: list[shap.TreeExplainer] | None = None
 
@@ -40,7 +49,7 @@ class StartupEvaluator:
         return X
 
     # ----------------------------------------------------------------- train
-    def fit(self, train: pd.DataFrame, val: pd.DataFrame) -> "StartupEvaluator":
+    def fit(self, train: pd.DataFrame, val: pd.DataFrame) -> StartupEvaluator:
         self.categories = {c: sorted(pd.concat([train[c], val[c]]).astype(str).unique()) for c in CATEGORICAL_FEATURES}
         Xtr, Xva = self._prep(train), self._prep(val)
         self.models = []
@@ -48,11 +57,10 @@ class StartupEvaluator:
             p = dict(PARAMS, seed=self.seed + i)
             dtr = lgb.Dataset(Xtr, train["label"], categorical_feature=CATEGORICAL_FEATURES)
             dva = lgb.Dataset(Xva, val["label"], reference=dtr)
-            m = lgb.train(p, dtr, num_boost_round=2000, valid_sets=[dva],
-                          callbacks=[lgb.early_stopping(100, verbose=False)])
+            m = lgb.train(p, dtr, num_boost_round=2000, valid_sets=[dva], callbacks=[lgb.early_stopping(100, verbose=False)])
             self.models.append(m)
         raw = self._raw(Xva).mean(axis=0)
-        self.calibrator = IsotonicRegression(out_of_bounds="clip", y_min=0.0, y_max=1.0).fit(raw, val["label"])
+        self.calibrator = LogisticRegression(C=1e4).fit(_logit(raw)[:, None], val["label"])
         self._explainers = None
         return self
 
@@ -65,7 +73,7 @@ class StartupEvaluator:
         raw = self._raw(self._prep(df))
         mean, std = raw.mean(axis=0), raw.std(axis=0)
         if calibrated and self.calibrator is not None:
-            mean = self.calibrator.predict(mean)
+            mean = self.calibrator.predict_proba(_logit(mean)[:, None])[:, 1]
         return mean, std
 
     # --------------------------------------------------------------- explain
@@ -90,6 +98,11 @@ class StartupEvaluator:
     def __setstate__(self, state):
         state["models"] = [lgb.Booster(model_str=s) for s in state["models"]]
         self.__dict__.update(state)
+
+
+def _logit(p: np.ndarray) -> np.ndarray:
+    p = np.clip(p, 1e-6, 1 - 1e-6)
+    return np.log(p / (1 - p))
 
 
 def _positive_class(explainer: shap.TreeExplainer, X: pd.DataFrame) -> np.ndarray:

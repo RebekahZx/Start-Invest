@@ -29,7 +29,7 @@ class TextEncoder:
         self._tfidf: TfidfVectorizer | None = None
         self._svd: TruncatedSVD | None = None
 
-    def fit(self, corpus: list[str]) -> "TextEncoder":
+    def fit(self, corpus: list[str]) -> TextEncoder:
         if self.requested in ("auto", "sentence-transformers") and self._load_st():
             self.backend = "sentence-transformers"
             return self
@@ -45,6 +45,7 @@ class TextEncoder:
     def _load_st(self) -> bool:
         try:
             from sentence_transformers import SentenceTransformer  # type: ignore
+
             self._st = SentenceTransformer(ST_MODEL)
             return True
         except Exception as e:  # not installed, or no network

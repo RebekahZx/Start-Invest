@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from startup_match.explain import reasons
-from startup_match.metrics import expected_calibration_error, ndcg_at_k, paired_bootstrap
+from start_invest.explain import reasons
+from start_invest.metrics import expected_calibration_error, ndcg_at_k, paired_bootstrap
 
 
 def test_ndcg_perfect_and_reversed():
@@ -37,8 +37,7 @@ def test_paired_bootstrap_detects_difference():
 
 def test_reasons_order_sign_and_missing():
     sv = pd.Series({"revenue_growth_yoy": 0.5, "months_since_last_round": -0.8, "log_customers": 0.01})
-    phrases = {"revenue_growth_yoy": ("Strong revenue growth", "Weak revenue"),
-               "months_since_last_round": ("Recently raised", "Long time since last round")}
+    phrases = {"revenue_growth_yoy": ("Strong revenue growth", "Weak revenue"), "months_since_last_round": ("Recently raised", "Long time since last round")}
     r = reasons(sv, phrases, top_k=3)
     assert [x["feature"] for x in r] == ["months_since_last_round", "revenue_growth_yoy"]  # tiny one dropped
     assert r[0]["direction"] == "-" and r[0]["text"] == "Long time since last round"

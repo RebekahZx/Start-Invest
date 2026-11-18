@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from startup_match.config import HORIZON_DAYS, TEST_END, TRAIN_END, VAL_END
-from startup_match.features import FEATURES, build_features, time_split
+from start_invest.config import HORIZON_DAYS, TEST_END, TRAIN_END, VAL_END
+from start_invest.features import FEATURES, build_features, time_split
 
 
 def test_shapes_and_label_rate(small_data):
@@ -48,7 +48,8 @@ def test_time_split_is_ordered_and_disjoint(small_data):
 
 
 def test_generation_is_deterministic():
-    from startup_match.data import generate
+    from start_invest.data import generate
+
     a, b = generate(300, 10, seed=5), generate(300, 10, seed=5)
     pd.testing.assert_frame_equal(a.rounds, b.rounds)
     assert np.array_equal(a.snapshots["label"], b.snapshots["label"])

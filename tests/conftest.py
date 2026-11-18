@@ -1,8 +1,8 @@
 import pytest
 
-from startup_match.config import PipelineConfig
-from startup_match.data import generate
-from startup_match.pipeline import run
+from start_invest.config import PipelineConfig
+from start_invest.data import generate
+from start_invest.pipeline import run
 
 
 @pytest.fixture(scope="session")
@@ -13,7 +13,7 @@ def small_data():
 @pytest.fixture(scope="session")
 def trained(tmp_path_factory):
     out = tmp_path_factory.mktemp("artifacts")
-    cfg = PipelineConfig(n_startups=2500, n_investors=120, candidates_per_investor=40,
-                         n_bagged_models=2, embedding_backend="lsa", seed=11)
+    # 250 funds -> 50 held out: enough for the ranker-vs-baseline CI to be meaningful
+    cfg = PipelineConfig(n_startups=2500, n_investors=250, candidates_per_investor=40, n_bagged_models=2, embedding_backend="lsa", seed=11)
     metrics = run(cfg, out)
     return out, metrics
