@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Startup Match</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f4ef;--panel:#fffdf8;--ink:#1d1c1a;--muted:#6b675f;--line:#e3dfd5;--accent:#1f5f4a;--accent-soft:#e3efe9;--neg:#9a3b26;--neg-soft:#f5e4de;--bar:#c9c3b6}
+@media (prefers-color-scheme:dark){:root{--bg:#141412;--panel:#1c1c19;--ink:#ecebe6;--muted:#9c988e;--line:#2e2d29;--accent:#7cc4a6;--accent-soft:#1f2e28;--neg:#e0937e;--neg-soft:#33221d;--bar:#3a3934}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+header{padding:28px 32px 8px;max-width:1200px;margin:auto}
+h1{font-size:22px;margin:0;font-weight:600;letter-spacing:-.01em}
+header p{margin:4px 0 0;color:var(--muted)}
+main{display:grid;grid-template-columns:340px 1fr;gap:24px;max-width:1200px;margin:auto;padding:16px 32px 48px}
+@media (max-width:860px){main{grid-template-columns:1fr;padding:16px}header{padding:20px 16px 4px}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px}
+label:first-child{margin-top:0}
+select,textarea,button{font:inherit;color:inherit}
+select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px}
+textarea{min-height:110px;resize:vertical}
+button{margin-top:12px;width:100%;padding:9px;border:0;border-radius:6px;background:var(--accent);color:var(--panel);font-weight:600;cursor:pointer}
+.kv{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--muted)}
+.kv b{color:var(--ink);font-weight:500}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:12px;display:grid;grid-template-columns:28px 1fr 150px;gap:14px}
+@media (max-width:560px){.card{grid-template-columns:24px 1fr}.card .side{grid-column:2}}
+.rank{font-family:"IBM Plex Mono",monospace;color:var(--muted);font-size:13px;padding-top:2px}
+.card h3{margin:0;font-size:16px;font-weight:600}
+.meta{color:var(--muted);font-size:13px;margin:2px 0 6px}
+.desc{margin:0 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12.5px;padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.chip.neg{background:var(--neg-soft);color:var(--neg)}
+.side{font-size:12.5px}
+.meter{height:6px;background:var(--bar);border-radius:3px;overflow:hidden;margin:4px 0 8px}
+.meter i{display:block;height:100%;background:var(--accent)}
+.badge{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11.5px;border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 10px;font-weight:500}
+.row{display:grid;grid-template-columns:1fr 60px;gap:8px;align-items:center;font-size:12.5px;margin:6px 0}
+.row .meter{margin:2px 0 0}
+.note{font-size:12px;color:var(--muted);margin-top:10px}
+#status{color:var(--muted);font-size:13px;margin-bottom:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Startup Match</h1>
+  <p>Personalised startup-investment feed: success estimates, thesis matching, learning-to-rank and per-recommendation explanations.</p>
+</header>
+<main>
+  <aside>
+    <div class="panel">
+      <label for="inv">Investor</label>
+      <select id="inv"></select>
+      <div id="profile" class="kv" style="margin-top:10px"></div>
+      <label for="thesis">Investment thesis (edit to re-personalise)</label>
+      <textarea id="thesis"></textarea>
+      <button id="go">Refresh feed</button>
+    </div>
+    <h2>Held-out ranking quality (NDCG@10)</h2>
+    <div class="panel" id="metrics"></div>
+  </aside>
+  <section>
+    <div id="status">Loading…</div>
+    <div id="feed"></div>
+  </section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const usd = v => v >= 1e6 ? `$${(v/1e6).toFixed(1)}M` : `$${Math.round(v/1e3)}k`;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let investors = [];
+
+async function j(url, opts) { const r = await fetch(url, opts); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+
+function showProfile(inv) {
+  $("#profile").innerHTML =
+    `<div>sectors <b>${inv.preferred_sectors.join(", ")}</b></div>
+     <div>stages <b>${inv.stages.join(" → ")}</b></div>
+     <div>ticket <b>${usd(inv.ticket_min)}–${usd(inv.ticket_max)}</b></div>
+     <div>risk appetite <b>${inv.risk_appetite.toFixed(2)}</b></div>`;
+  $("#thesis").value = inv.thesis;
+}
+
+async function loadFeed(useThesis) {
+  const id = +$("#inv").value;
+  $("#status").textContent = "Ranking…";
+  try {
+    const body = JSON.stringify({ k: 10, thesis: useThesis ? $("#thesis").value : null });
+    const items = await j(`/investors/${id}/feed`, { method: "POST", headers: { "Content-Type": "application/json" }, body });
+    $("#status").textContent = `Top ${items.length} of the held-out startup pool for ${investors.find(i => i.investor_id === id).name}`;
+    $("#feed").innerHTML = items.map((x, i) => `
+      <article class="card">
+        <div class="rank">${String(i + 1).padStart(2, "0")}</div>
+        <div>
+          <h3>${esc(x.name)}</h3>
+          <div class="meta">${x.sector} · ${x.country} · raising ${x.next_stage}</div>
+          <p class="desc">${esc(x.description)}</p>
+          <div class="chips">${x.reasons.map(r => `<span class="chip ${r.direction === "-" ? "neg" : ""}">${r.direction === "-" ? "−" : "+"} ${esc(r.text)}</span>`).join("")}</div>
+        </div>
+        <div class="side">
+          <div>P(follow-on in 24 mo) <b>${Math.round(x.p_success * 100)}%</b></div>
+          <div class="meter"><i style="width:${x.p_success * 100}%"></i></div>
+          <span class="badge">${x.confidence} confidence</span>
+          <div class="kv" style="margin-top:8px">± ${x.uncertainty.toFixed(3)} ensemble sd</div>
+        </div>
+      </article>`).join("");
+  } catch (e) { $("#status").textContent = "Error: " + e.message; }
+}
+
+async function loadMetrics() {
+  const m = await j("/metrics");
+  const rows = Object.entries(m.ranking).sort((a, b) => b[1]["ndcg@10"] - a[1]["ndcg@10"]);
+  const cmp = m.ranker_vs_best_baseline, ev = m.evaluator.calibrated;
+  $("#metrics").innerHTML = rows.map(([k, v]) => `
+    <div class="row"><div>${esc(k)}<div class="meter"><i style="width:${v["ndcg@10"] * 100}%"></i></div></div>
+    <div class="kv"><b>${v["ndcg@10"].toFixed(3)}</b></div></div>`).join("") +
+    `<div class="note">Ranker vs ${esc(cmp.baseline)}: +${cmp.mean_diff.toFixed(3)} (95% CI ${cmp.ci_low.toFixed(3)}–${cmp.ci_high.toFixed(3)}), ${m.data.test_investors} held-out investors.<br>
+     Evaluator (time-split test): AUC ${ev.auc.toFixed(3)}, ECE ${ev.ece.toFixed(3)}. Embeddings: ${m.embedding_backend}.<br>
+     All data is synthetic.</div>`;
+}
+
+(async () => {
+  investors = await j("/investors?limit=500");
+  $("#inv").innerHTML = investors.map(i => `<option value="${i.investor_id}">${esc(i.name)} — ${i.preferred_sectors.join(", ")}</option>`).join("");
+  $("#inv").onchange = () => { showProfile(investors.find(i => i.investor_id === +$("#inv").value)); loadFeed(false); };
+  $("#go").onclick = () => loadFeed(true);
+  showProfile(investors[0]);
+  loadMetrics();
+  loadFeed(false);
+})();
+</script>
+</body>
+</html>

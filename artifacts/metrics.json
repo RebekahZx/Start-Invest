@@ -1,0 +1,117 @@
+{
+  "config": {
+    "n_startups": 6000,
+    "n_investors": 400,
+    "candidates_per_investor": 60,
+    "n_bagged_models": 5,
+    "embedding_backend": "auto",
+    "seed": 7
+  },
+  "embedding_backend": "lsa",
+  "embedding_sector_match_auc": 0.9308,
+  "data": {
+    "startups": 6000,
+    "rounds": 15001,
+    "investors": 400,
+    "snapshots": {
+      "train": 2652,
+      "val": 926,
+      "test": 2200
+    },
+    "ranking_pairs": 24000,
+    "test_investors": 80
+  },
+  "evaluator": {
+    "uncalibrated": {
+      "auc": 0.7620259081796852,
+      "brier": 0.17175679365885044,
+      "ece": 0.025861551842201538,
+      "base_rate": 0.2922727272727273,
+      "n": 2200
+    },
+    "calibrated": {
+      "auc": 0.7605331263715462,
+      "brier": 0.1717038282812651,
+      "ece": 0.02323980991048139,
+      "base_rate": 0.2922727272727273,
+      "n": 2200
+    },
+    "baseline_last_round_recency_auc": 0.6810825739573751,
+    "random_split_auc_for_comparison": 0.7688985878923518,
+    "top_features": {
+      "months_since_last_round": 5122.9,
+      "months_since_founding": 1514.6,
+      "hiring_growth_6m": 1080.0,
+      "log_total_raised": 1032.2,
+      "revenue_growth_yoy": 1005.7,
+      "log_customers": 969.3,
+      "avg_months_between_rounds": 592.0,
+      "web_traffic_growth_6m": 555.9
+    }
+  },
+  "ranking": {
+    "LambdaMART ranker": {
+      "ndcg@5": 0.7431,
+      "ndcg@10": 0.7746,
+      "ndcg@10_ci95": [
+        0.7479,
+        0.8003
+      ]
+    },
+    "Random": {
+      "ndcg@5": 0.1874,
+      "ndcg@10": 0.2193,
+      "ndcg@10_ci95": [
+        0.1953,
+        0.2445
+      ]
+    },
+    "Popularity (total raised)": {
+      "ndcg@5": 0.2762,
+      "ndcg@10": 0.3433,
+      "ndcg@10_ci95": [
+        0.2986,
+        0.3903
+      ]
+    },
+    "Text similarity only": {
+      "ndcg@5": 0.311,
+      "ndcg@10": 0.382,
+      "ndcg@10_ci95": [
+        0.3522,
+        0.4104
+      ]
+    },
+    "Success probability only": {
+      "ndcg@5": 0.3978,
+      "ndcg@10": 0.4292,
+      "ndcg@10_ci95": [
+        0.3988,
+        0.461
+      ]
+    },
+    "Similarity x success (naive product)": {
+      "ndcg@5": 0.4867,
+      "ndcg@10": 0.5271,
+      "ndcg@10_ci95": [
+        0.495,
+        0.5591
+      ]
+    },
+    "Hand-tuned mandate score (sim + success + stage + ticket)": {
+      "ndcg@5": 0.6106,
+      "ndcg@10": 0.6335,
+      "ndcg@10_ci95": [
+        0.6031,
+        0.6658
+      ]
+    }
+  },
+  "ranker_vs_best_baseline": {
+    "baseline": "Hand-tuned mandate score (sim + success + stage + ticket)",
+    "mean_diff": 0.1411,
+    "ci_low": 0.1117,
+    "ci_high": 0.1719,
+    "p_value": 0.0
+  }
+}
